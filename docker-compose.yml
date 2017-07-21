@@ -1,0 +1,59 @@
+version: "3.3"
+
+# Load the file at config/production.properties into the swarm cluster
+configs:
+  cascade.production.0:
+    file: config/production.properties
+
+# Note that you'll be using a pre-defined secret named cascade.db_password.0
+# https://docs.docker.com/engine/reference/commandline/secret/
+secrets:
+  cascade.db_password.0:
+    external: true
+
+# Set up an NFS mount named publish_volume
+volumes:
+  publish_volume:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nfs_server.example.com,nfsvers=3
+      device: ":/cascade"
+
+services:
+  cascade_cms:
+    # Building the image should refer to the Dockerfile
+    build: .
+    # Name the image
+    image: cascade:8.4.1
+    # Set the hostname so that Cascade licensing will work
+    hostname: cascade.example.com
+    environment:
+      # Set Java run options
+      CATALINA_OPTS: -XX:MaxPermSize=384m -Xmx8192m -Xms2048m -Djava.awt.headless=true -Dfile.encoding=UTF-8
+      # Point our run script at our settings file
+      CONFIG_FILE: /cascade/production.properties
+    secrets:
+      # Map the secret to the name db.password (what it should show up as in catalina.properties)
+      - source: cascade.db_password.0
+        target: db.password
+        mode: 0444
+    configs:
+      # Map our configuration file into the container at a known path
+      - source: cascade.production.0
+        target: /cascade/production.properties
+        mode: 0444
+    volumes:
+      # Map our NFS mount to /cascad_publish in the container
+      - type: volume
+        source: publish_volume
+        target: /cascade_publish
+        read_only: false
+    deploy:
+      resources:
+        # Limit memory to 8.25GB
+        limits:
+          memory: 8448M
+        # Reserve 1GB of memory when starting the container
+        reservations:
+          memory: 1024M
