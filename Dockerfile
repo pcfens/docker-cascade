@@ -7,7 +7,9 @@ LABEL org.label-schema.name="Cascade CMS" \
 EXPOSE 8080
 HEALTHCHECK CMD curl -f http://localhost:8080/ || exit 1
 
-RUN ln -s /usr/share/zoneinfo/America/New_York /etc/localtime
+RUN ln -s /usr/share/zoneinfo/America/New_York /etc/localtime \
+    && yum install util-linux -y \
+    && yum clean all
 
 # Copy the tomcat component of the download into the container
 COPY cascade/tomcat /usr/local/tomcat
